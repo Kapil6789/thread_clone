@@ -1,0 +1,137 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model User {
+  id          Int         @id @default(autoincrement())
+  username    String      @unique
+  email       String
+  password    String
+  bio         String?
+  profilePic  String      @default("https://www.pngall.com/wp-content/uploads/5/10/avatar-1.png")
+  public_id   String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  threads   Post[]  @relation("UserThreads") // posts created by this user
+  posts       Post[]
+  comments    Comment[]
+  followers   Followers[] @relation("FollowedBy")
+  following   Followers[] @relation("Following")
+   likes       Like[]
+  replies     Reply[]
+  reposts     Repost[]
+}
+
+model Post {
+  id        Int       @id @default(autoincrement())
+  text      String
+  media     String?
+  public_id String?
+
+  createdAt DateTime  @default(now())
+
+  // Post creator
+  admin     User      @relation(fields: [adminId], references: [id],onDelete: Cascade)
+  adminId   Int
+
+  // Likes
+  likes   Like[]
+
+    author    User    @relation("UserThreads", fields: [authorId], references: [id],onDelete: Cascade)
+  authorId  Int
+  // Comments
+  comments  Comment[]
+
+  // Reposts, replies (if used)
+  replies   Reply[]
+  reposts   Repost[]
+}
+
+model Comment {
+  id         Int      @id @default(autoincrement())
+  text       String
+
+  // Who commented
+  author     User     @relation(fields: [authorId], references: [id],onDelete: Cascade)
+  authorId   Int
+
+  // On which post
+  post       Post     @relation(fields: [postId], references: [id],onDelete: Cascade)
+  postId     Int
+  likes   Like[]  
+
+  createdAt  DateTime @default(now())
+}
+
+model Followers {
+  id          Int    @id @default(autoincrement())
+  follower    User   @relation("Following", fields: [followerId], references: [id],onDelete: Cascade)
+  followerId  Int
+
+  following   User   @relation("FollowedBy", fields: [followingId], references: [id],onDelete: Cascade)
+  followingId Int
+
+  @@unique([followerId, followingId]) // prevent duplicate follows
+}
+
+// Optional: if you're supporting threaded replies
+model Reply {
+  id        Int      @id @default(autoincrement())
+  text      String
+  author    User     @relation(fields: [authorId], references: [id],onDelete: Cascade)
+  authorId  Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    Int
+  likes   Like[]   
+
+  createdAt DateTime @default(now())
+}
+
+// Optional: for reposting logic
+model Repost {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id],onDelete: Cascade)
+  userId    Int
+  post      Post     @relation(fields: [postId], references: [id],onDelete: Cascade)
+  postId    Int
+  createdAt DateTime @default(now())
+}
+
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id],onDelete: Cascade)
+  userId    Int
+
+  post      Post?    @relation(fields: [postId], references: [id],onDelete: Cascade)
+  postId    Int?
+
+  comment   Comment? @relation(fields: [commentId], references: [id])
+  commentId Int?
+
+  reply     Reply?   @relation(fields: [replyId], references: [id])
+  replyId   Int?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@unique([userId, commentId])
+  @@unique([userId, replyId])
+}
+
+
