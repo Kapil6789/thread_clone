@@ -7,105 +7,89 @@ const { formidable } = pkg;
 
 
 
-const signUpUser = async (req, res, next) => {
-
+const signUpUser = async (req, res) => {
   try {
-    const { username, email, password } = req.body
+    const { username, email, password } = req.body;
 
-    if (!username || !password || !email) {
-      return res.status(403).json({
-        msg: "username,password,email is required"
-      })
+    if (!username || !email || !password) {
+      return res.status(400).json({ msg: "username, password, and email are required" });
     }
-    const userExist = await prisma.user.findUnique({
-      where: {
-        username: username
-      }
-    })
 
+    const userExist = await prisma.user.findUnique({ where: { username } });
     if (userExist) {
-      return res.status(404).json({ msg: "user is already registered! User login" })
+      return res.status(400).json({ msg: "User already registered! Please login" });
     }
 
     const hashedPassword = await bcrypt.hash(String(password), 10);
 
-    if (!hashedPassword) {
-      return res.json({ msg: "error in password hashing" })
-    }
-
     const user = await prisma.user.create({
-      data: {
-        username: username,
-        email,
-        password: hashedPassword
-      }
-    })
+      data: { username, email, password: hashedPassword }
+    });
 
-    const generateToken = jwt.sign({ token: user.id }, process.env.JWT_SECRET, { expiresIn: "30d" })
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: "30d" });
 
-    if (!generateToken) {
-      return res.status(404).json({ msg: "error in generating token" })
-    }
-    res.cookie("thread_token", generateToken, {
-      maxAge: 60 * 60 * 24 * 30,
+    res.cookie("thread_token", token, {
+      maxAge: 1000 * 60 * 60 * 24 * 30,
       httpOnly: true,
       sameSite: "lax",
-      secure: false,
-      partitioned:true
-    })
-
-    res.status(200).json({ msg: "sign in successfully" })
-
+      secure: false
+    });
+    res.status(200).json({
+      msg: "Signed in successfully",
+      me: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        profilePic: user.profilePic,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ msg: "Error in signin", err: err.message });
   }
-  catch (err) {
-    res.status(400).json({
-      msg: "error in signin", err: err.message
-    })
-  }
+};
 
-}
 
 
 const loginUser = async (req, res, next) => {
-
   try {
-    const { username } = req.body
-    if (!username) {
-      return res.status(400).json({ msg: "credentials are required" })
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ msg: "credentials are required" });
     }
     const userExist = await prisma.user.findUnique({
-      where: {
-        username: username
-      }
-    })
+      where: { username }
+    });
     if (!userExist) {
-      res.status(400).json({ msg: "Please signin first" })
+      return res.status(400).json({ msg: "Please signin first" });
     }
-    const passwordMatched = bcrypt.compare(String(password), userExist.password)
+    const passwordMatched = await bcrypt.compare(String(password), userExist.password);
     if (!passwordMatched) {
-        res.status(411).json({
-            msg: "invalid credentials"
-        })
+      return res.status(411).json({ msg: "invalid credentials" });
     }
-    const accessToken = jwt.sign({ token: userExist.id }, process.env.JWT_SECRET, { expiresIn: "3d" })
+    const accessToken = jwt.sign({ id: userExist.id }, process.env.JWT_SECRET, { expiresIn: "3d" });
     if (!accessToken) {
-      req.status(400).json({ msg: "error in generating token" })
+      return res.status(400).json({ msg: "error in generating token" });
     }
     res.cookie("thread_token", accessToken, {
       maxAge: 1000 * 60 * 60 * 24 * 30,
       httpOnly: true,
       secure: false,
       sameSite: "lax",
-      partitioned:true
-    })
-    res.status(200).json({ msg: "user logged in successfully !" })
+      partitioned: true
+    });
+   res.status(200).json({
+      msg: "User logged in successfully!",
+      user: {
+        id: userExist.id,
+        username: userExist.username,
+        email: userExist.email,
+        profilePic: userExist.profilePic,
+      }
+    });  
   }
-  catch (err) {
-    res.status(411).json({
-      err: err.message
-    })
+  catch(err){
+    res.status(500).json({msg:err.message})
   }
-
 }
 
 const logout = async (req, res, next) => {
@@ -121,7 +105,7 @@ const logout = async (req, res, next) => {
 
 const userDetails = async (req, res, next) => {
   try {
-    const id = (req.params.id);
+    const id = req.params.id;
 
     if (!id) {
       return res.status(400).json({ msg: "User ID is required" });
@@ -411,28 +395,29 @@ const searchUser = async (req, res) => {
 
 const myInfo = async (req, res, next) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ msg: "Unauthorized: User ID missing" });
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-       include: {
-    threads: true,
-    posts: true,
-    comments: true,
-    followers: true,
-    following: true,
-    likes: true,
-    replies: true,
-    reposts: true,
-  },
+      include: {
+        threads: true,
+        posts: true,
+        comments: true,
+        followers: true,
+        following: true,
+        likes: true,
+        replies: true,
+        reposts: true,
+      },
     });
-
-    const {password,...safeUser}=user
 
     if (!user) {
       return res.status(404).json({ msg: "User not found" });
     }
 
-    return res.status(200).json({ userInformation: safeUser });
+    return res.status(200).json({ me: user });
   } catch (err) {
     console.error("Error fetching user info:", err);
     res.status(500).json({ msg: "Error in fetching info" });

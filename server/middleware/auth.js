@@ -14,9 +14,9 @@ const auth = async (req, res, next) => {
         if (!decodedToken) {
             return res.status(400).json({ msg: "error while decoding token in auth" })
         }
-        console.log(decodedToken)
+
         const user = await prisma.user.findUnique({
-            where: { id: decodedToken.token },
+            where: { id: decodedToken.id },
             include: {
                 followers: true,
                 threads: true,
@@ -28,7 +28,7 @@ const auth = async (req, res, next) => {
             return res.status(404).json({ msg: "User not found" });
         }
 
-        req.user = { id: decodedToken.token }
+        req.user = { id: decodedToken.id }
         next()
 
     }

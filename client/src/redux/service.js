@@ -22,7 +22,7 @@ export const serviceApi = createApi({
         method: "POST",
         body: data,
       }),
-      invalidateTags: ["Me"],
+      invalidatesTags: ["Me"],
     }),
     login: builder.mutation({
       query: (data) => ({
@@ -50,7 +50,7 @@ export const serviceApi = createApi({
     logoutMe: builder.mutation({
       query: () => ({
         url: "/user/logout",
-        method: "POST",
+        method: "GET",
       }),
       invalidatesTags: ["Me"],
     }),
@@ -113,11 +113,11 @@ export const serviceApi = createApi({
         method: "GET",
       }),
       providesTags: (result) => {
-        return result
+        return result && result.allPost
           ? [
-              ...result.posts.map(({ _id }) => ({ type: "Post", id: _id })),
-              { type: "Post", id: "LIST" },
-            ]
+            ...result.allPost.map(({ _id }) => ({ type: "Post", id: _id })),
+            { type: "Post", id: "LIST" },
+          ]
           : [{ type: "Post", id: "LIST" }];
       },
       async onQueryStarted(params, { dispatch, queryFulfilled }) {

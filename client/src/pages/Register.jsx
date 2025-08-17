@@ -27,7 +27,7 @@ const Register = () => {
 
   const handleLogin = async () => {
     const data = {
-      email,
+      username,
       password,
     };
     await loginUser(data);
@@ -136,20 +136,19 @@ const Register = () => {
             fontWeight={"bold"}
             alignSelf={"center"}
           >
-            {login ? " Login with email" : " Register with email"}
+            {login ? " Login with username" : " Register with username"}
           </Typography>
-          {login ? null : (
             <TextField
               variant="outlined"
               placeholder="Enter your userName..."
               onChange={(e) => setUserName(e.target.value)}
             />
-          )}
-          <TextField
+          
+          {login?null:(<TextField
             variant="outlined"
             placeholder="Enter your Email..."
             onChange={(e) => setEmail(e.target.value)}
-          />
+          />)}
           <TextField
             variant="outlined"
             placeholder="Enter your Password..."
@@ -190,3 +189,7 @@ const Register = () => {
 };
 
 export default Register;
+
+
+
+  

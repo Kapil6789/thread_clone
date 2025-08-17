@@ -17,15 +17,19 @@ const App = () => {
   const { darkMode } = useSelector((state) => state.service);
   const { data, isError } = useMyInfoQuery();
 
-  if (isError || !data) {
-    return (
-      <BrowserRouter>
-        <Routes>
-          <Route exact path="/*" element={<Register />} />
-        </Routes>
-      </BrowserRouter>
-    );
-  }
+console.log(data);
+console.log(isError)
+
+if (isError || !data) {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/*" element={<Register />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
 
   return (
     <>
