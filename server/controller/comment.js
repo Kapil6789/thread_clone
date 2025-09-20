@@ -3,10 +3,10 @@ import prisma from "../prisma/connector.js"
 
 const addComments = async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const postId = parseInt(req.params.postId); // Changed from id to postId
     const { text } = req.body;
 
-    if (!id) {
+    if (!postId) {
       return res.status(400).json({ msg: "Post ID is required" });
     }
     if (!text) {
@@ -14,7 +14,7 @@ const addComments = async (req, res) => {
     }
 
     const postExist = await prisma.post.findUnique({
-      where: { id }
+      where: { id: postId } // Use postId here
     });
 
     if (!postExist) {
@@ -29,7 +29,16 @@ const addComments = async (req, res) => {
           connect: { id: req.user.id }
         },
         post: {
-          connect: { id }
+          connect: { id: postId } // Use postId here
+        }
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            profilePic: true
+          }
         }
       }
     });

@@ -34,7 +34,7 @@ const ProfileLayout = () => {
 
   const checkIsFollowing = () => {
     if (data && myInfo) {
-      const isTrue = data.user.followers.filter((e) => e._id === myInfo._id);
+      const isTrue = data.user.followers.filter((e) => e.id === myInfo.id);
       if (isTrue.length > 0) {
         setIsFollowing(true);
         return;
@@ -45,14 +45,14 @@ const ProfileLayout = () => {
 
   const checkIsMyAccount = () => {
     if (data && myInfo) {
-      const isTrue = data.user._id === myInfo._id;
+      const isTrue = data.user._id === myInfo.id;
       setMyAccount(isTrue);
     }
   };
 
   const handleFollow = async () => {
     if (data) {
-      await followUser(data.user._id);
+      await followUser(data.user.id);
     }
   };
 
@@ -94,15 +94,7 @@ const ProfileLayout = () => {
 
   return (
     <>
-      <Helmet>
-        <title>
-          {data
-            ? data.user
-              ? data.user.userName + " | Threads Clone"
-              : "Threads Clone | App by Aditya Jawanjal"
-            : "Threads Clone | App by Aditya Jawanjal"}
-        </title>
-      </Helmet>
+    
       <Stack
         flexDirection={"column"}
         gap={2}
@@ -114,39 +106,43 @@ const ProfileLayout = () => {
         <Stack
           flexDirection={"row"}
           justifyContent={"space-between"}
-          alignItems={"center"}
+          alignItems={"flex-start"}
         >
-          <Stack flexDirection={"column"} gap={1}>
+          <Stack flexDirection={"column"} alignItems={"flex-start"} gap={1} flex={1}>
             <Typography
               variant="h2"
               fontWeight={"bold"}
               fontSize={_300 ? "2rem" : "1rem"}
             >
-              {data ? (data.user ? data.user.userName : "") : ""}
+              {data ? (data.user ? data.user.username : "") : ""}
             </Typography>
-            <Stack flexDirection={"row"} alignItems={"center"} gap={1}>
-              <Typography variant="h2" fontSize={_300 ? "1rem" : "0.8rem"}>
-                {data ? (data.user ? data.user.email : "") : ""}
-              </Typography>
-              <Chip
-                label="threads.net"
-                size="small"
-                sx={{ fontSize: _300 ? "0.8rem" : "0.6rem" }}
-              />
-            </Stack>
+            <Typography variant="subtitle2">
+              {data ? (data.user ? data.user.bio : "") : ""}
+            </Typography>
+            <Typography variant="h2" fontSize={_300 ? "1rem" : "0.8rem"}>
+              {data ? (data.user ? data.user.email : "") : ""}
+            </Typography>
+            <Chip
+              label="threads.net"
+              size="small"
+              sx={{ fontSize: _300 ? "0.8rem" : "0.6rem" }}
+            />
           </Stack>
-          <Avatar
-            src={data ? (data.user ? data.user.profilePic : "") : ""}
-            alt={data ? (data.user ? data.user.userName : "") : ""}
-            sx={{ width: _300 ? 60 : 40, height: _300 ? 60 : 40 }}
-          />
+          <Stack flexDirection={"column"} alignItems={"center"} gap={1}>
+            <Avatar
+              src={data ? (data.user ? data.user.profilePic : "") : ""}
+              alt={data ? (data.user ? data.user.userName : "") : ""}
+              sx={{ width: _300 ? 60 : 40, height: _300 ? 60 : 40 }}
+            />
+            <FaInstagram size={_300 ? 30 : 20} />
+          </Stack>
         </Stack>
         <Typography variant="subtitle2">
           {data ? (data.user ? data.user.bio : "") : ""}
         </Typography>
         <Stack
           flexDirection={"row"}
-          justifyContent={"space-between"}
+          justifyContent={"flex-start"}
           alignItems={"center"}
         >
           <Typography variant="subtitle2" color={"gray"}>
@@ -158,7 +154,6 @@ const ProfileLayout = () => {
                 : ""
               : ""}
           </Typography>
-          <FaInstagram size={_300 ? 40 : 24} />
         </Stack>
       </Stack>
       <Button
@@ -189,19 +184,19 @@ const ProfileLayout = () => {
         mx={"auto"}
       >
         <Link
-          to={`/profile/threads/${data?.user._id}`}
+          to={`/profile/threads/${data?.user.id}`}
           className={`link ${darkMode ? "mode" : ""}`}
         >
           Threads
         </Link>
         <Link
-          to={`/profile/replies/${data?.user._id}`}
+          to={`/profile/replies/${data?.user.id}`}
           className={`link ${darkMode ? "mode" : ""}`}
         >
           Replies
         </Link>
         <Link
-          to={`/profile/reposts/${data?.user._id}`}
+          to={`/profile/reposts/${data?.user.id}`}
           className={`link ${darkMode ? "mode" : ""}`}
         >
           Reposts

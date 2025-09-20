@@ -1,4 +1,3 @@
-
 import express from "express"
 import userRouter from "./routes/user.js"
 import postRouter from "./routes/post.js"
@@ -12,6 +11,8 @@ import {postByUser} from "./seeders/post.js"
 import {replies}  from "./seeders/replies.js"
 import {repost} from "./seeders/repost.js"
 import { likes } from "./seeders/like.js"
+import jwt from "jsonwebtoken"
+
 // createUser(1)
 // comments(1)
 // postByUser(1)
@@ -31,9 +32,11 @@ app.use(cookieParser())
 app.use(express.json())
 app.use(express.urlencoded({extended:true}))
 
+
+
 app.use("/api/v1/user",userRouter)
 app.use("/api/v1/post",postRouter)
-app.use("/api/v1/comment",commentRouter)
+app.use("/api/v1/comments",commentRouter)
 
 app.listen(5000,()=>{
     console.log("server is running")

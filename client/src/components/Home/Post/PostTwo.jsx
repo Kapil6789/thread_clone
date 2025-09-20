@@ -14,35 +14,48 @@ const PostTwo = ({ e }) => {
   const [likePost] = useLikePostMutation();
   const [repost, repostData] = useRepostMutation();
 
-  const [isLiked, setIsLiked] = useState();
+  const [isLiked, setIsLiked] = useState(false);
 
   const _300 = useMediaQuery("(min-width:300px)");
   const _400 = useMediaQuery("(min-width:400px)");
   const _500 = useMediaQuery("(min-width:500px)");
   const _700 = useMediaQuery("(min-width:700px)");
 
+  // derive safe values
+  const postId = e?.id ?? e?._id ?? null;
+  const adminUsername = e?.admin?.username ?? e?.admin?.userName ?? "";
+
   const handleLike = async () => {
-    await likePost(e?._id);
+    if (!postId) return;
+    await likePost(postId);
   };
 
   const checkIsLiked = () => {
-    if (e?.likes.length > 0) {
-      const variable = e.likes.filter((ele) => ele._id === myInfo._id);
-      if (variable.length > 0) {
-        setIsLiked(true);
-        return;
-      }
+    const myUserId = myInfo?.id ?? myInfo?._id;
+    if (!myUserId || !Array.isArray(e?.likes)) {
+      setIsLiked(false);
+      return;
     }
-    setIsLiked(false);
+    const liked = e.likes.some((like) => {
+      const likerId =
+        like?.user?.id ??
+        like?.user?._id ??
+        like?.userId ??
+        like?.id ??
+        like?._id;
+      return likerId === myUserId;
+    });
+    setIsLiked(!!liked);
   };
 
   const handleRepost = async () => {
-    await repost(e?._id);
+    if (!postId) return;
+    await repost(postId);
   };
 
   useEffect(() => {
     checkIsLiked();
-  }, [e]);
+  }, [e, myInfo]);
 
   useEffect(() => {
     if (repostData.isSuccess) {
@@ -81,9 +94,9 @@ const PostTwo = ({ e }) => {
               fontSize={_300 ? "1rem" : "0.8rem"}
               fontWeight={"bold"}
             >
-              {e ? e.admin.userName : ""}
+              {adminUsername}
             </Typography>
-            <Link to={`/post/${e?._id}`} className="link">
+            <Link to={`/post/${postId ?? ""}`} className="link">
               <Typography
                 variant="h5"
                 fontSize={
@@ -128,7 +141,7 @@ const PostTwo = ({ e }) => {
               />
             )}
 
-            <Link to={`/post/${e?._id}#comment`} className="link">
+            <Link to={`/post/${postId ?? ""}#comment`} className="link">
               <FaRegComment size={_700 ? 32 : _300 ? 28 : 24} />
             </Link>
             <FaRetweet
@@ -144,33 +157,25 @@ const PostTwo = ({ e }) => {
             top={-3}
             left={4}
           >
-            {e ? (
-              e.likes.length > 0 ? (
-                <Typography
-                  variant="caption"
-                  color={darkMode ? "white" : "GrayText"}
-                  fontSize={_700 ? "1.1rem" : "1rem"}
-                >
-                  {e.likes.length} likes .
-                </Typography>
-              ) : (
-                ""
-              )
+            {e?.likes?.length > 0 ? (
+              <Typography
+                variant="caption"
+                color={darkMode ? "white" : "GrayText"}
+                fontSize={_700 ? "1.1rem" : "1rem"}
+              >
+                {e.likes.length} likes .
+              </Typography>
             ) : (
               ""
             )}
-            {e ? (
-              e.comments.length > 0 ? (
-                <Typography
-                  variant="caption"
-                  color={darkMode ? "white" : "GrayText"}
-                  fontSize={_700 ? "1.1rem" : "1rem"}
-                >
-                  {e.comments.length} comment{" "}
-                </Typography>
-              ) : (
-                ""
-              )
+            {e?.comments?.length > 0 ? (
+              <Typography
+                variant="caption"
+                color={darkMode ? "white" : "GrayText"}
+                fontSize={_700 ? "1.1rem" : "1rem"}
+              >
+                {e.comments.length} comment{" "}
+              </Typography>
             ) : (
               ""
             )}

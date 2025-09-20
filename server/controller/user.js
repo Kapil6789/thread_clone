@@ -5,7 +5,17 @@ import { cloudinary } from "../config/cloudinary.js"
 import pkg from "formidable";
 const { formidable } = pkg;
 
+const JWT_SECRET = process.env.JWT_SECRET || "dev_jwt_secret_key";
 
+// normalized cookie options for consistency
+const isProd = process.env.NODE_ENV === "production";
+const cookieOptions = {
+  maxAge: 1000 * 60 * 60 * 24 * 30,
+  httpOnly: true,
+  secure: isProd,
+  sameSite: isProd ? "none" : "lax",
+  path: "/",
+};
 
 const signUpUser = async (req, res) => {
   try {
@@ -19,6 +29,11 @@ const signUpUser = async (req, res) => {
     if (userExist) {
       return res.status(400).json({ msg: "User already registered! Please login" });
     }
+    // ensure email is not already registered (use findFirst to avoid requiring unique constraint)
+    const emailExist = await prisma.user.findFirst({ where: { email } });
+    if (emailExist) {
+      return res.status(400).json({ msg: "Email already registered! Please login" });
+    }
 
     const hashedPassword = await bcrypt.hash(String(password), 10);
 
@@ -26,16 +41,14 @@ const signUpUser = async (req, res) => {
       data: { username, email, password: hashedPassword }
     });
 
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: "30d" });
+    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "30d" });
 
-    res.cookie("thread_token", token, {
-      maxAge: 1000 * 60 * 60 * 24 * 30,
-      httpOnly: true,
-      sameSite: "lax",
-      secure: false
-    });
+    // use normalized cookie options
+    res.cookie("thread_token", token, cookieOptions);
     res.status(200).json({
-      msg: "Signed in successfully",
+      msg: "Signed up successfully",
+      // optionally return token if client wants to use Authorization header
+      token,
       me: {
         id: user.id,
         username: user.username,
@@ -44,48 +57,46 @@ const signUpUser = async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ msg: "Error in signin", err: err.message });
+    res.status(500).json({ msg: "Error in signup", err: err.message });
   }
 };
 
-
-
 const loginUser = async (req, res, next) => {
   try {
-    const { username, password } = req.body;
-    if (!username || !password) {
+    // accept username or email as identifier
+    const identifier = req.body?.username || req.body?.email || req.body?.identifier;
+    const { password } = req.body || {};
+    if (!identifier || !password) {
       return res.status(400).json({ msg: "credentials are required" });
     }
-    const userExist = await prisma.user.findUnique({
-      where: { username }
+
+    const userExist = await prisma.user.findFirst({
+      where: {
+        OR: [{ username: identifier }, { email: identifier }],
+      }
     });
     if (!userExist) {
-      return res.status(400).json({ msg: "Please signin first" });
+      return res.status(400).json({ msg: "Please signup first" });
     }
+
     const passwordMatched = await bcrypt.compare(String(password), userExist.password);
     if (!passwordMatched) {
-      return res.status(411).json({ msg: "invalid credentials" });
+      return res.status(401).json({ msg: "invalid credentials" });
     }
-    const accessToken = jwt.sign({ id: userExist.id }, process.env.JWT_SECRET, { expiresIn: "3d" });
-    if (!accessToken) {
-      return res.status(400).json({ msg: "error in generating token" });
-    }
-    res.cookie("thread_token", accessToken, {
-      maxAge: 1000 * 60 * 60 * 24 * 30,
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      partitioned: true
-    });
-   res.status(200).json({
+
+    const accessToken = jwt.sign({ id: userExist.id }, JWT_SECRET, { expiresIn: "30d" });
+
+    res.cookie("thread_token", accessToken, cookieOptions);
+    res.status(200).json({
       msg: "User logged in successfully!",
+      token: accessToken,
       user: {
         id: userExist.id,
         username: userExist.username,
         email: userExist.email,
         profilePic: userExist.profilePic,
       }
-    });  
+    });
   }
   catch(err){
     res.status(500).json({msg:err.message})
@@ -93,22 +104,19 @@ const loginUser = async (req, res, next) => {
 }
 
 const logout = async (req, res, next) => {
-  res.status(200).cookie("thread_token", "", {
-    maxAge: 0,
-    httpOnly: true,
-    secure: false,
-    sameSite: "lax"
-  }).json({
-    message: "Logged out successfully"
-  })
+  res
+    .cookie("thread_token", "", { ...cookieOptions, maxAge: 0 })
+    .status(200)
+    .json({ message: "Logged out successfully" });
 }
 
 const userDetails = async (req, res, next) => {
   try {
-    const id = req.params.id;
-
-    if (!id) {
-      return res.status(400).json({ msg: "User ID is required" });
+    // Fix: Replace idParam with req.params.id
+    const id = parseInt(req.params.id);
+    
+    if (!id || isNaN(id)) {
+      return res.status(400).json({ msg: "Invalid user ID" });
     }
 
 
@@ -380,14 +388,20 @@ const searchUser = async (req, res) => {
         email: true,
         profilePic: true,
         bio: true,
+        followers: {
+          select: {
+            id: true
+          }
+        }
       },
     });
 
-    res.status(200).json({ msg: "Search !", users })
+    res.status(200).json({ msg: "Search completed", users })
 
   }
   catch (err) {
-    res.status(401).json({ msg: "error in search user" })
+    console.error("Search error:", err);
+    res.status(500).json({ msg: "Error in search user" })
   }
 }
 
@@ -423,7 +437,6 @@ const myInfo = async (req, res, next) => {
     res.status(500).json({ msg: "Error in fetching info" });
   }
 };
-
 
 
 

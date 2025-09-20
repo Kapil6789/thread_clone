@@ -18,10 +18,10 @@ datasource db {
 model User {
   id          Int         @id @default(autoincrement())
   username    String      @unique
-  email       String
+  email       String      @unique
   password    String
   bio         String?
-  profilePic  String      @default("https://www.pngall.com/wp-content/uploads/5/10/avatar-1.png")
+  profilePic  String      @default("https://www.gravatar.com/avatar/2c7d99fe281ecd3bcd65ab915bac6dd5?s=250&r=pg&d=mm")
   public_id   String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

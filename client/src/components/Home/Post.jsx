@@ -1,7 +1,7 @@
 import { Stack, Typography, useMediaQuery } from "@mui/material";
 import { IoIosMore } from "react-icons/io";
-import PostOne from "./post/PostOne";
-import PostTwo from "./post/PostTwo";
+import PostOne from "./Post/PostOne";
+import PostTwo from "./Post/PostTwo";
 import { useDispatch, useSelector } from "react-redux";
 import { addPostId, toggleMyMenu } from "../../redux/slice";
 import { useEffect, useState } from "react";
@@ -18,12 +18,12 @@ const Post = ({ e }) => {
   const dispatch = useDispatch();
 
   const handleOpenMenu = (event) => {
-    dispatch(addPostId(e._id));
+    dispatch(addPostId(e.id));
     dispatch(toggleMyMenu(event.currentTarget));
   };
 
   const checkIsAdmin = () => {
-    if (e?.admin._id === myInfo._id) {
+    if (e?.admin?.id === myInfo?.id) {
       setIsAdmin(true);
       return;
     }
@@ -31,7 +31,7 @@ const Post = ({ e }) => {
   };
 
   useEffect(() => {
-    if (e && myInfo) {
+    if (e && myInfo && e.admin) {
       checkIsAdmin();
     }
   }, [e, myInfo]);

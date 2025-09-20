@@ -5,6 +5,7 @@ import {
   addToAllPost,
   addUser,
   deleteThePost,
+  addToSearchedUsers,
 } from "./slice";
 
 export const serviceApi = createApi({
@@ -25,11 +26,16 @@ export const serviceApi = createApi({
       invalidatesTags: ["Me"],
     }),
     login: builder.mutation({
-      query: (data) => ({
-        url: "/user/login",
-        method: "POST",
-        body: data,
-      }),
+      query: (data) => {
+        // force server-compatible payload: it expects { username, password }
+        const { email, username, password } = data || {};
+        const identifier = (username || email || "").trim();
+        return {
+          url: "/user/login",
+          method: "POST",
+          body: { username: identifier, password },
+        };
+      },
       invalidatesTags: ["Me"],
     }),
     myInfo: builder.query({
@@ -50,7 +56,7 @@ export const serviceApi = createApi({
     logoutMe: builder.mutation({
       query: () => ({
         url: "/user/logout",
-        method: "GET",
+        method: "POST",
       }),
       invalidatesTags: ["Me"],
     }),
@@ -74,13 +80,22 @@ export const serviceApi = createApi({
         url: `/user/search/${query}`,
         method: "GET",
       }),
+      async onQueryStarted(params, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(addToSearchedUsers(data.users || []));
+        } catch (err) {
+          console.log("Search error:", err);
+          dispatch(addToSearchedUsers([]));
+        }
+      },
     }),
     followUser: builder.mutation({
       query: (id) => ({
         url: `/user/follow/${id}`,
         method: "PUT",
       }),
-      invalidatesTags: (result, error, { id }) => [{ type: "User", id }],
+      invalidatesTags: (result, error, id) => [{ type: "User", id }, "User"],
     }),
     updateProfile: builder.mutation({
       query: (data) => ({
@@ -113,9 +128,31 @@ export const serviceApi = createApi({
         method: "GET",
       }),
       providesTags: (result) => {
-        return result && result.allPost
+        return result && result.posts
           ? [
-            ...result.allPost.map(({ _id }) => ({ type: "Post", id: _id })),
+            ...result.posts.map(({ id }) => ({ type: "Post", id })),
+            { type: "Post", id: "LIST" },
+          ]
+          : [{ type: "Post", id: "LIST" }];
+      },
+      async onQueryStarted(params, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(addToAllPost(data));
+        } catch (err) {
+          console.log(err);
+        }
+      },
+    }),
+    listPosts: builder.query({
+      query: (page) => ({
+        url: `/post?page=${page}`,
+        method: "GET",
+      }),
+      providesTags: (result) => {
+        return result && result.posts
+          ? [
+            ...result.posts.map(({ id }) => ({ type: "Post", id })),
             { type: "Post", id: "LIST" },
           ]
           : [{ type: "Post", id: "LIST" }];
@@ -151,36 +188,53 @@ export const serviceApi = createApi({
       invalidatesTags: (result, error, { id }) => [{ type: "Post", id }],
     }),
     singlePost: builder.query({
-      query: (id) => ({
-        url: `/post/${id}`,
-        method: "GET",
-      }),
-      providesTags: (result, error, { id }) => [{ type: "Post", id }],
+      query: (id) => {
+        if (!id || id === 'undefined' || id === undefined) {
+          throw new Error('Post ID is required');
+        }
+        return {
+          url: `/post/${id}`,
+          method: "GET",
+        };
+      },
+      providesTags: (result, error, id) => {
+        if (!id || id === 'undefined' || id === undefined) return [];
+        return [{ type: "Post", id }];
+      },
+      async onQueryStarted(params, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(addSingle(data));
+        } catch (err) {
+          console.log(err);
+        }
+      },
     }),
     repost: builder.mutation({
       query: (id) => ({
-        url: `/repost/${id}`,
+        url: `/post/repost/${id}`,
         method: "PUT",
       }),
       invalidatesTags: ["User"],
     }),
 
     addComment: builder.mutation({
-      query: ({ id, ...data }) => ({
-        url: `/comment/${id}`,
-        method: "POST",
-        body: data,
-      }),
-      invalidatesTags: ["User"],
+      query: ({ postId, text }) => {
+        console.log("Redux service - addComment called with:", { postId, text });
+        return {
+          url: `/comments/addComment/${postId}`,
+          method: 'POST',
+          body: { text },
+        };
+      },
+      invalidatesTags: ['Post', 'Comment'],
     }),
     deleteComment: builder.mutation({
       query: ({ postId, id }) => ({
-        url: `/comment/${postId}/${id}`,
-        method: "DELETE",
+        url: `/comments/deleteComment/${postId}/${id}`,
+        method: 'DELETE',
       }),
-      invalidatesTags: (result, error, { postId }) => [
-        { type: "Post", id: postId },
-      ],
+      invalidatesTags: ['Post', 'Comment'],
     }),
   }),
 });
@@ -193,6 +247,7 @@ export const {
   useUserDetailsQuery,
   useLazySearchUsersQuery,
   useAllPostQuery,
+  useListPostsQuery,
   useFollowUserMutation,
   useAddCommentMutation,
   useAddPostMutation,

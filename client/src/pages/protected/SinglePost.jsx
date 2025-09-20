@@ -17,7 +17,7 @@ const SinglePost = () => {
   const handleAddComment = async (e) => {
     if (data && e.key === "Enter") {
       const info = {
-        id: data.post._id,
+        postId: data.post.id, // Changed from _id to id
         text: comment,
       };
       await addComment(info);
@@ -61,7 +61,7 @@ const SinglePost = () => {
           {data
             ? data.post?.comments?.length > 0
               ? data.post.comments.map((e) => {
-                  return <Comments key={e._id} e={e} postId={data?.post._id} />;
+                  return <Comments key={e.id} e={e} postId={data?.post.id} />; // Changed from _id to id
                 })
               : null
             : null}

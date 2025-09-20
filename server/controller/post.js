@@ -1,4 +1,3 @@
-
 import prisma from "../prisma/connector.js"
 
 import { cloudinary } from "../config/cloudinary.js"
@@ -55,6 +54,75 @@ const addPost = async (req, res) => {
 }
 
 
+const listPosts = async (req, res) => {
+    try {
+        const { page = 1 } = req.query;
+        const pageNumber = parseInt(page) || 1;
+        const limit = 10; // Adjust as needed
+        
+        const posts = await prisma.post.findMany({
+            orderBy: {
+                createdAt: 'desc',
+            },
+            skip: (pageNumber - 1) * limit,
+            take: limit,
+            include: {
+                admin: {
+                    select: { 
+                        id: true, 
+                        username: true, 
+                        email: true, 
+                        profilePic: true,
+                        bio: true 
+                    }
+                },
+                author: {
+                    select: { 
+                        id: true, 
+                        username: true, 
+                        email: true, 
+                        profilePic: true,
+                        bio: true 
+                    }
+                },
+                likes: {
+                    include: {
+                        user: {
+                            select: {
+                                id: true,
+                                username: true,
+                                profilePic: true
+                            }
+                        }
+                    }
+                },
+                comments: {
+                    include: {
+                        author: {
+                            select: {
+                                id: true,
+                                username: true,
+                                profilePic: true
+                            }
+                        }
+                    }
+                }
+            },
+        });
+        
+        return res.status(200).json({ 
+            msg: "Posts fetched successfully", 
+            posts: posts 
+        });
+
+    } catch (err) {
+        return res.status(500).json({ 
+            msg: "Error fetching posts", 
+            error: err.message 
+        });
+    }
+};
+
 const allPost = async (req, res) => {
     try {
         const { page } = req.query
@@ -70,17 +138,17 @@ const allPost = async (req, res) => {
             take: 3,
             include: {
                 admin: {
-                    select: { id: true, username: true, bio: true, email: true, bio: true, public_id: true }
+                    select: { id: true, username: true, bio: true, email: true, public_id: true }
                 },
                 likes: true,
                 comments: true
             },
         });
-        res.status(404).json({ msg: "all Post", allPost: posts })
+        res.status(200).json({ msg: "all Post", allPost: posts })
 
     }
     catch (err) {
-        res.status(404).json({ msg: err.message })
+        res.status(500).json({ msg: err.message })
 
     }
 }
@@ -129,11 +197,10 @@ const deletePost = async (req, res) => {
 
 
 const likePost = async (req, res) => {
-
     try {
         const id = parseInt(req.params.id)
         if (!id) {
-            return res.status(404).json({ msg: "id is required" })
+            return res.status(400).json({ msg: "id is required" })
         }
         const post = await prisma.post.findUnique({
             where: {
@@ -154,13 +221,13 @@ const likePost = async (req, res) => {
         if (existingLike) {
             await prisma.like.deleteMany({
                 where: {
-                    userId,
-                    postId,
+                    userId: req.user.id,
+                    postId: id,
                 },
             });
-            return res.status(404).json({ msg: "Post Unliked" })
-
+            return res.status(200).json({ msg: "Post Unliked" })
         }
+        
         await prisma.like.create({
             data: {
                 user: { connect: { id: req.user.id } },
@@ -168,12 +235,10 @@ const likePost = async (req, res) => {
             },
         });
 
-        return res.status(404).json({ msg: "Post liked" })
+        return res.status(200).json({ msg: "Post liked" })
 
-
-    }
-    catch (err) {
-        return res.status(404).json({ err: err.message })
+    } catch (err) {
+        return res.status(500).json({ msg: "Error in like/unlike", error: err.message })
     }
 }
 
@@ -245,13 +310,28 @@ const singlePost = async (req, res) => {
             username: true,       
             email: true,
             profilePic: true,
+            bio: true,
+          },
+        },
+        author: {
+          select: {
+            id: true,
+            username: true,       
+            email: true,
+            profilePic: true,
+            bio: true,
           },
         },
         likes: {
-          select: {
-            id: true,
-            userId: true,         
-          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                profilePic: true
+              }
+            }
+          }
         },
         comments: {
           include: {
@@ -260,6 +340,7 @@ const singlePost = async (req, res) => {
                 id: true,
                 username: true,   
                 profilePic: true,
+                bio: true,
               },
             },
           },
@@ -281,4 +362,4 @@ const singlePost = async (req, res) => {
 
 
 
-export { addPost, allPost, deletePost, likePost,repost,singlePost }
+export { addPost, allPost, deletePost, likePost, repost, singlePost, listPosts }

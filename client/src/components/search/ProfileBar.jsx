@@ -27,15 +27,15 @@ const ProfileBar = ({ e }) => {
         sx={{ ":hover": { cursor: "pointer" } }}
       >
         <Stack flexDirection={"row"} gap={2}>
-          <Avatar src={e ? e.profilePic : ""} alt={e ? e.userName : ""} />
+          <Avatar src={e ? e.profilePic : ""} alt={e ? e.username : ""} />
           <Stack flexDirection={"column"}>
-            <Link to={`/profile/threads/${e._id}`} className="link">
+            <Link to={`/profile/threads/${e.id}`} className="link">
               <Typography
                 variant="h6"
                 fontWeight={"bold"}
                 fontSize={_700 ? "1rem" : "0.9rem"}
               >
-                {e ? e.userName : ""}
+                {e ? e.username : ""}
               </Typography>
             </Link>
             <Typography
@@ -46,11 +46,11 @@ const ProfileBar = ({ e }) => {
               {e ? e.bio : ""}
             </Typography>
             <Typography variant="caption" fontSize={_700 ? "1rem" : "0.9rem"}>
-              {e ? e.followers.length : 0} followers
+              {e?.followers?.length ? `${e.followers.length} followers` : "0 followers"}
             </Typography>
           </Stack>
         </Stack>
-        <Link to={`/profile/threads/${e._id}`} className="link">
+        <Link to={`/profile/threads/${e.id}`} className="link">
           <Button
             size="medium"
             sx={{

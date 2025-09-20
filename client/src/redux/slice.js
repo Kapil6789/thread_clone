@@ -1,5 +1,50 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+// helpers to normalize shapes (Prisma vs Mongo-like)
+const normUser = (u) => {
+  // ensure we always return an object to avoid e.admin._id crashes
+  if (!u) return { _id: undefined, id: undefined, userName: undefined, username: undefined, profilePic: undefined };
+  return {
+    ...u,
+    _id: u._id ?? u.id,
+    id: u.id ?? u._id,
+    userName: u.userName ?? u.username,
+    username: u.username ?? u.userName,
+  };
+};
+
+const normPost = (p) => {
+  if (!p) return p;
+  const admin = normUser(p.admin);
+  const author = normUser(p.author);
+  const comments = Array.isArray(p.comments)
+    ? p.comments.map((c) => ({
+        ...c,
+        _id: c._id ?? c.id,
+        id: c.id ?? c._id,
+        admin: normUser(c.admin),
+        author: normUser(c.author),
+      }))
+    : p.comments;
+  const likes = Array.isArray(p.likes)
+    ? p.likes.map((l) => ({
+        ...l,
+        _id: l._id ?? l.id,
+        id: l.id ?? l._id,
+        user: normUser(l.user),
+      }))
+    : p.likes;
+
+  return {
+    ...p,
+    _id: p._id ?? p.id,
+    id: p.id ?? p._id,
+    admin,
+    author,
+    comments,
+    likes,
+  };
+};
 
 export const serviceSlice = createSlice({
   name: "service",
@@ -9,7 +54,7 @@ export const serviceSlice = createSlice({
     anchorE1: null,
     anchorE2: null,
     darkMode: false,
-    myInfo: null,
+    myInfo: {}, // default to object to avoid reading from null/undefined
     user: {},
     allPosts: [],
     postId: null,
@@ -32,51 +77,50 @@ export const serviceSlice = createSlice({
       state.darkMode = !state.darkMode;
     },
     addMyInfo: (state, action) => {
-      state.myInfo = action.payload.me;
+      // normalize me so components can use _id or id interchangeably
+      state.myInfo = normUser(action.payload?.me || {});
     },
     addUser: (state, action) => {
       state.user = action.payload;
     },
 
     addSingle: (state, action) => {
-      let newArr = [...state.allPosts];
-      let updatedArr = [action.payload.newPost, ...newArr];
-      let uniqueArr = new Set();
-      let uniquePosts = updatedArr.filter((e) => {
-        if (!uniqueArr.has(e._id)) {
-          uniqueArr.add(e);
-          return true;
-        }
-        return false;
+      const incoming = action.payload?.newPost ?? action.payload?.post ?? action.payload;
+      const newPost = normPost(incoming);
+      const newArr = [newPost, ...state.allPosts.map(normPost)];
+      const seen = new Set();
+      const uniquePosts = newArr.filter((p) => {
+        const key = p._id ?? p.id;
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
       });
-      state.allPosts = [...uniquePosts];
+      state.allPosts = uniquePosts;
     },
     addToAllPost: (state, action) => {
-      const newPostArr = [...action.payload.posts];
+      const incoming = action.payload?.posts ?? action.payload?.allPost ?? [];
+      const normalized = incoming.map(normPost);
+
       if (state.allPosts.length === 0) {
-        state.allPosts = newPostArr;
+        state.allPosts = normalized;
         return;
       }
       const existingPosts = [...state.allPosts];
-      newPostArr.forEach((e) => {
-        const existingIndex = existingPosts.findIndex((i) => {
-          return i._id === e._id;
-        });
-        if (existingIndex !== -1) {
-          existingPosts[existingIndex] = e;
-        } else {
-          existingPosts.push(e);
-        }
+      normalized.forEach((p) => {
+        const pid = p._id ?? p.id;
+        const idx = existingPosts.findIndex((i) => (i._id ?? i.id) === pid);
+        if (idx !== -1) existingPosts[idx] = p;
+        else existingPosts.push(p);
       });
       state.allPosts = existingPosts;
     },
     deleteThePost: (state, action) => {
-      let postArr = [...state.allPosts];
-      let newArr = postArr.filter((e) => e._id !== state.postId);
-      state.allPosts = newArr;
+      const targetId = state.postId ?? action.payload?._id ?? action.payload?.id;
+      state.allPosts = state.allPosts.filter((e) => (e._id ?? e.id) !== targetId);
     },
     addPostId:(state,action)=>{
-      state.postId = action.payload;
+      const val = action.payload;
+      state.postId = typeof val === "object" ? (val?._id ?? val?.id ?? null) : val;
     },
 
     addToSearchedUsers: (state, action) => {

@@ -8,7 +8,7 @@ const router=express.Router()
 
 router.use(auth)
 
-router.post("/addComment/:id",addComments)
+router.post("/addComment/:postId",addComments)
 router.delete("/deleteComment/:postId/:id",deleteComment)
 
 
